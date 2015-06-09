@@ -183,7 +183,7 @@ class SimpleLDAPLogin {
 	}
 
 	function admin_page () {
-		include 'Simple-LDAP-Login-Admin.php';
+		include 'wp-openldap-login-admin.php';
 	}
 
 	function get_settings_obj () {
