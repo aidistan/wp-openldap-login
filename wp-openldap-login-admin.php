@@ -1,5 +1,5 @@
 <?php
-global $SimpleLDAPLogin;
+global $OpenLDAPLogin;
 
 if( isset( $_GET[ 'tab' ] ) ) {
     $active_tab = $_GET[ 'tab' ];
@@ -36,14 +36,14 @@ if( isset( $_GET[ 'tab' ] ) ) {
 	    		<tr>
 					<th scope="row" valign="top">Account Suffix</th>
 					<td>
-						<input type="text" name="<?php echo $this->get_field_name('account_suffix'); ?>" value="<?php echo $SimpleLDAPLogin->get_setting('account_suffix'); ?>" /><br/>
+						<input type="text" name="<?php echo $this->get_field_name('account_suffix'); ?>" value="<?php echo $OpenLDAPLogin->get_setting('account_suffix'); ?>" /><br/>
 						Often the suffix of your e-mail address. Example: @gmail.com
 					</td>
 				</tr>
 				<tr>
 					<th scope="row" valign="top">Base DN</th>
 					<td>
-						<input type="text" name="<?php echo $this->get_field_name('base_dn'); ?>" value="<?php echo $SimpleLDAPLogin->get_setting('base_dn'); ?>" />
+						<input type="text" name="<?php echo $this->get_field_name('base_dn'); ?>" value="<?php echo $OpenLDAPLogin->get_setting('base_dn'); ?>" />
 						<br/>
 						Example: For subdomain.domain.suffix, use DC=subdomain,DC=domain,DC=suffix. Do not specify an OU here.
 					</td>
@@ -51,7 +51,7 @@ if( isset( $_GET[ 'tab' ] ) ) {
 				<tr>
 					<th scope="row" valign="top">Domain Controller(s)</th>
 					<td>
-						<input type="text" name="<?php echo $this->get_field_name('domain_controllers', 'array'); ?>" value="<?php echo join(';', (array)$SimpleLDAPLogin->get_setting('domain_controllers')); ?>" />
+						<input type="text" name="<?php echo $this->get_field_name('domain_controllers', 'array'); ?>" value="<?php echo join(';', (array)$OpenLDAPLogin->get_setting('domain_controllers')); ?>" />
 						<br/>Separate with semi-colons.
 					</td>
 				</tr>
@@ -73,7 +73,7 @@ if( isset( $_GET[ 'tab' ] ) ) {
 				<tr>
 					<th scope="row" valign="top">Required Groups</th>
 					<td>
-						<input type="text" name="<?php echo $this->get_field_name('groups', 'array'); ?>" value="<?php echo join(';', (array)$SimpleLDAPLogin->get_setting('groups')); ?>" /><br/>
+						<input type="text" name="<?php echo $this->get_field_name('groups', 'array'); ?>" value="<?php echo join(';', (array)$OpenLDAPLogin->get_setting('groups')); ?>" /><br/>
 						The groups, if any, that authenticating LDAP users must belong to. <br/>
 						Empty means no group required. Separate with semi-colons.
 					</td>
@@ -116,17 +116,17 @@ if( isset( $_GET[ 'tab' ] ) ) {
 	    		<tr>
 					<th scope="row" valign="top">LDAP Login Attribute</th>
 					<td>
-						<input type="text" name="<?php echo $this->get_field_name('ol_login'); ?>" value="<?php echo $SimpleLDAPLogin->get_setting('ol_login'); ?>" />
+						<input type="text" name="<?php echo $this->get_field_name('ol_login'); ?>" value="<?php echo $OpenLDAPLogin->get_setting('ol_login'); ?>" />
 						<br />
-						In case your installation uses something other than <b>uid</b>; 
+						In case your installation uses something other than <b>uid</b>;
 					</td>
 				</tr>
 	    		<tr>
 					<th scope="row" valign="top">LDAP Group Attribute</th>
 					<td>
-						<input type="text" name="<?php echo $this->get_field_name('ol_group'); ?>" value="<?php echo $SimpleLDAPLogin->get_setting('ol_group'); ?>" />
+						<input type="text" name="<?php echo $this->get_field_name('ol_group'); ?>" value="<?php echo $OpenLDAPLogin->get_setting('ol_group'); ?>" />
 						<br />
-						In case your installation uses something other than <b>cn</b>; 
+						In case your installation uses something other than <b>cn</b>;
 					</td>
 				</tr>
 				<tr>
@@ -139,14 +139,14 @@ if( isset( $_GET[ 'tab' ] ) ) {
 				<tr>
 					<th scope="row" valign="top">LDAP Port</th>
 					<td>
-						<input type="text" name="<?php echo $this->get_field_name('ldap_port'); ?>" value="<?php echo $SimpleLDAPLogin->get_setting('ldap_port'); ?>" /><br/>
+						<input type="text" name="<?php echo $this->get_field_name('ldap_port'); ?>" value="<?php echo $OpenLDAPLogin->get_setting('ldap_port'); ?>" /><br/>
 						This is usually 389.
 					</td>
 				</tr>
 				<tr>
 					<th scope="row" valign="top">LDAP Version</th>
 					<td>
-						<input type="text" name="<?php echo $this->get_field_name('ldap_version'); ?>" value="<?php echo $SimpleLDAPLogin->get_setting('ldap_version'); ?>" /><br/>
+						<input type="text" name="<?php echo $this->get_field_name('ldap_version'); ?>" value="<?php echo $OpenLDAPLogin->get_setting('ldap_version'); ?>" /><br/>
 						Only applies to Open LDAP. Typically 3.
 					</td>
 				</tr>
