@@ -10,183 +10,81 @@
 
 class OpenLDAPLogin {
 	static $instance = false;
-	var $prefix = 'sll_';
+	const VERSION = '0.1.0';
+
+	var $prefix = 'oll_';
 	var $settings = array();
-	var $adldap;
 	var $ldap;
 	var $network_version = null;
 
-	public function __construct () {
-		$this->settings = $this->get_settings_obj( $this->prefix );
+	public function __construct() {
+		$this->settings = $this->get_settings_obj($this->prefix);
 
-		if( $this->get_setting('directory') == "ad" ) {
-			require_once( plugin_dir_path(__FILE__) . "/includes/adLDAP.php" );
-			$this->adldap = new adLDAP(
-				array (
-					"account_suffix"		=>	$this->get_setting('account_suffix'),
-					"use_tls"				=>	str_true( $this->get_setting('use_tls') ),
-					"base_dn"				=>	$this->get_setting('base_dn'),
-					"domain_controllers"	=>	(array)$this->get_setting('domain_controllers'),
-					"ad_port"				=>	$this->get_setting('ldap_port')
-				)
-			);
-		}
-
-		add_action('admin_init', array($this, 'save_settings') );
+		add_action('admin_init', array($this, 'save_settings'));
 
 		if ($this->is_network_version()) {
-			add_action('network_admin_menu', array($this, 'menu') );
+			add_action('network_admin_menu', array($this, 'menu'));
 		}
 		else {
-			add_action('admin_menu', array($this, 'menu') );
+			add_action('admin_menu', array($this, 'menu'));
 		}
 
-
-		if ( str_true($this->get_setting('enabled')) ) {
-			add_filter('authenticate', array($this, 'authenticate'), 1, 3);
+		if (str_true($this->get_setting('enabled'))) {
+			// Prior to default authentication
+			add_filter('authenticate', array($this, 'authenticate'), 10, 3);
 		}
 
-		register_activation_hook( __FILE__, array($this, 'activate') );
-
-		// If version is false, and old version detected, run activation
-		if( $this->get_setting('version') === false ||
-			get_option('openldap_domain_controllers', false) !== false  ||
-			get_site_option('openldap_domain_controllers', false) !== false )
-		{
+		register_activation_hook(__FILE__, array($this, 'activate'));
+		if($this->get_setting('version') !== self::VERSION) {
 			$this->activate();
 		}
 	}
 
-	public static function getInstance () {
-		if ( !self::$instance ) {
+	public static function getInstance() {
+		if (!self::$instance) {
 		  self::$instance = new self;
 		}
 		return self::$instance;
 	}
 
-	function activate () {
+	function activate() {
+		$this->add_setting('version', self::VERSION);
+
 		// Default settings
-		$this->add_setting('account_suffix', "@mydomain.org");
-		$this->add_setting('base_dn', "DC=mydomain,DC=org");
-		$this->add_setting('domain_controllers', array("dc01.mydomain.local") );
-		$this->add_setting('directory', "ad");
-		$this->add_setting('role', "contributor");
-		$this->add_setting('high_security', "true");
-		$this->add_setting('ol_login', "uid");
-		$this->add_setting('ol_group', "cn");
-		$this->add_setting('use_tls', "false");
+		$this->add_setting('enabled', 'false');
+		$this->add_setting('account_preffix', 'cn');
+		$this->add_setting('account_suffix', 'dc=example,dc=com');
+		$this->add_setting('domain_controllers', array('ldap.example.com'));
+		$this->add_setting('required_groups', array());
+		$this->add_setting('admin_group', '');
+		$this->add_setting('editor_group', '');
+		$this->add_setting('author_group', '');
+		$this->add_setting('default_role', 'subscriber');
 		$this->add_setting('ldap_port', 389);
 		$this->add_setting('ldap_version', 3);
-		$this->add_setting('create_users', "false");
-		$this->add_setting('enabled', "false");
-                $this->add_setting('search_sub_ous', "false");
-
-		if( $this->get_setting('version') === false ) {
-			$this->set_setting('version', '1.5');
-			$this->set_setting('enabled', 'true');
-
-			if ($this->is_network_version()) {
-				$account_suffix = get_site_option('openldap_account_suffix');
-				$openldap_base_dn = get_site_option('openldap_base_dn');
-				$openldap_domain_controllers = get_site_option('openldap_domain_controllers');
-				$openldap_directory_type = get_site_option('openldap_directory_type');
-				$openldap_group = get_site_option('openldap_group');
-				$openldap_account_type = get_site_option('openldap_account_type');
-				$openldap_ol_login = get_site_option('openldap_ol_login');
-				$openldap_use_tls = get_site_option('openldap_use_tls');
-				$openldap_login_mode = get_site_option('openldap_login_mode');
-				$openldap_security_mode = get_site_option('openldap_security_mode');
-			}
-			else {
-				$account_suffix = get_option('openldap_account_suffix');
-				$openldap_base_dn = get_option('openldap_base_dn');
-				$openldap_domain_controllers = get_option('openldap_domain_controllers');
-				$openldap_directory_type = get_option('openldap_directory_type');
-				$openldap_group = get_option('openldap_group');
-				$openldap_account_type = get_option('openldap_account_type');
-				$openldap_ol_login = get_option('openldap_ol_login');
-				$openldap_use_tls = get_option('openldap_use_tls');
-				$openldap_login_mode = get_option('openldap_login_mode');
-				$openldap_security_mode = get_option('openldap_security_mode');
-			}
-
-			if ( $this->set_setting('account_suffix', $account_suffix ) ) {
-				//delete_option('openldap_account_suffix');
-			}
-
-			if ( $this->set_setting('base_dn', $openldap_base_dn) ) {
-				//delete_option('openldap_base_dn');
-			}
-
-			if ( $this->set_setting('domain_controllers', $openldap_domain_controllers) ) {
-				//delete_option('openldap_domain_controllers');
-			}
-
-			$directory_result = false;
-			if ( $openldap_directory_type == "directory_ad" ) {
-				$directory_result = $this->set_setting('directory', 'ad');
-			} else {
-				$directory_result = $this->set_setting('directory', 'ol');
-			}
-
-			//if( $directory_result ) delete_option('openldap_directory_type');
-			unset($directory_result);
-
-			if ( $this->set_setting('groups', (array)$openldap_group ) ) {
-				//delete_option('openldap_group');
-			}
-
-			if ( $this->set_setting('role', $openldap_account_type) ) {
-				//delete_option('openldap_account_type');
-			}
-
-			if ( $this->set_setting('ol_login', $openldap_ol_login) ) {
-				//delete_option('openldap_ol_login');
-			}
-
-			if ( $this->set_setting('use_tls', str_true( $openldap_use_tls ) ) ) {
-				//delete_option('openldap_use_tls');
-			}
-
-			$create_users = false;
-			if ( $openldap_login_mode == "mode_create_all" || $openldap_login_mode == "mode_create_group" ) {
-				$create_users = true;
-			}
-			if ( $this->set_setting('create_users', $create_users) ) {
-				//delete_option('openldap_login_mode');
-			}
-
-			$high_security = false;
-			if ( $openldap_security_mode == "security_high" ) {
-				$high_security = true;
-			}
-			if ( $this->set_setting('high_security', $high_security) ) {
-				//delete_option('openldap_security_mode');
-			}
- 		}
 	}
 
-	function menu () {
+	function menu() {
 		if ($this->is_network_version()) {
 			add_submenu_page(
 				"settings.php",
-				"Simple LDAP Login",
-				"Simple LDAP Login",
+				"OpenLDAP Login",
+				"OpenLDAP Login",
 				'manage_network_plugins',
-				"simple-ldap-login",
+				"openldap-login",
 				array($this, 'admin_page')
 			);
 		}
 		else {
-			add_options_page("Simple LDAP Login", "Simple LDAP Login", 'manage_options', "simple-ldap-login", array($this, 'admin_page') );
+			add_options_page("OpenLDAP Login", "OpenLDAP Login", 'manage_options', "openldap-login", array($this, 'admin_page'));
 		}
 	}
 
-	function admin_page () {
+	function admin_page() {
 		include 'wp-openldap-login-admin.php';
 	}
 
-	function get_settings_obj () {
+	function get_settings_obj() {
 		if ($this->is_network_version()) {
 			return get_site_option("{$this->prefix}settings", false);
 		}
@@ -195,50 +93,50 @@ class OpenLDAPLogin {
 		}
 	}
 
-	function set_settings_obj ( $newobj ) {
+	function set_settings_obj($newobj) {
 		if ($this->is_network_version()) {
 			return update_site_option("{$this->prefix}settings", $newobj);
 		}
 		else {
 			return update_option("{$this->prefix}settings", $newobj);
 		}
-
 	}
 
-	function set_setting ( $option = false, $newvalue ) {
-		if( $option === false ) return false;
+	function set_setting($option = false, $newvalue) {
+		if ($option === false) return false;
 
 		$this->settings = $this->get_settings_obj($this->prefix);
 		$this->settings[$option] = $newvalue;
 		return $this->set_settings_obj($this->settings);
 	}
 
-	function get_setting ( $option = false ) {
-		if($option === false || ! isset($this->settings[$option]) ) return false;
+	function get_setting($option = false) {
+		if ($option === false || !isset($this->settings[$option])) return false;
 
 		return apply_filters($this->prefix . 'get_setting', $this->settings[$option], $option);
 	}
 
-	function add_setting ( $option = false, $newvalue ) {
-		if($option === false ) return false;
+	function add_setting($option = false, $newvalue) {
+		if ($option === false) return false;
 
-		if ( ! isset($this->settings[$option]) ) {
+		if (isset($this->settings[$option])) {
+			return false;
+		} else {
 			return $this->set_setting($option, $newvalue);
-		} else return false;
+		}
 	}
 
 	function get_field_name($setting, $type = 'string') {
 		return "{$this->prefix}setting[$setting][$type]";
 	}
 
-	function save_settings()
-	{
-		if( isset($_REQUEST["{$this->prefix}setting"]) && check_admin_referer('save_sll_settings','save_the_sll') ) {
+	function save_settings() {
+		if (isset($_REQUEST["{$this->prefix}setting"]) && check_admin_referer('save_oll_settings','save_the_oll')) {
 			$new_settings = $_REQUEST["{$this->prefix}setting"];
 
-			foreach( $new_settings as $setting_name => $setting_value  ) {
-				foreach( $setting_value as $type => $value ) {
-					if( $type == "array" ) {
+			foreach ($new_settings as $setting_name => $setting_value) {
+				foreach ($setting_value as $type => $value) {
+					if ($type == "array") {
 						$this->set_setting($setting_name, explode(";", $value));
 					} else {
 						$this->set_setting($setting_name, $value);
@@ -246,72 +144,52 @@ class OpenLDAPLogin {
 				}
 			}
 
-			add_action('admin_notices', array($this, 'saved_admin_notice') );
+			add_action('admin_notices', array($this, 'saved_admin_notice'));
 		}
 	}
 
 	function saved_admin_notice(){
-	    echo '<div class="updated">
-	       <p>Simple LDAP Login settings have been saved.</p>
-	    </div>';
-
-	    if( ! str_true($this->get_setting('enabled')) ) {
-			echo '<div class="error">
-				<p>Simple LDAP Login is disabled.</p>
-			</div>';
-	    }
+    if(!str_true($this->get_setting('enabled'))) {
+			echo '<div class="error"><p>OpenLDAP Login is disabled.</p></div>';
+    } else {
+			echo '<div class="updated"><p>OpenLDAP Login settings have been saved.</p></div>';
+		}
 	}
 
-	function authenticate ($user, $username, $password) {
-		// If previous authentication succeeded, respect that
-		if ( is_a($user, 'WP_User') ) { return $user; }
+	function authenticate($user, $username, $password) {
+		// Respect succeeded authentications with high priorities
+		if (is_a($user, 'WP_User')) {
+			return $user;
+		}
 
-		// Determine if user a local admin
-		$local_admin = false;
-		$user_obj = get_user_by('login', $username);
-		if( user_can($user_obj, 'update_core') ) $local_admin = true;
-
-		// Allow a site to force LDAP even on admin accounts
-		$local_admin = apply_filters( 'sll_force_ldap', $local_admin );
-		// To force LDAP authentication, the filter should return boolean false
-
-		if ( empty($username) || empty($password) ) {
+		// Check username & password
+		if (empty($username) || empty($password)) {
 			$error = new WP_Error();
 
-			if ( empty($username) )
+			if (empty($username)) {
 				$error->add('empty_username', __('<strong>ERROR</strong>: The username field is empty.'));
+			}
 
-			if ( empty($password) )
+			if (empty($password)) {
 				$error->add('empty_password', __('<strong>ERROR</strong>: The password field is empty.'));
+			}
 
 			return $error;
 		}
 
-		// If high security mode is enabled, remove default WP authentication hook
-		if ( str_true( $this->get_setting('high_security') ) && ! $local_admin ) {
-			remove_filter('authenticate', 'wp_authenticate_username_password', 20, 3);
-		}
+		// Authenticate the username and the password against LDAP
+		if ($this->ldap_auth($username, $password)) {
 
-		// Sweet, let's try to authenticate our user and pass against LDAP
-		$auth_result = $this->ldap_auth($username, $password, $this->get_setting('directory') );
-
-		if( $auth_result ) {
-			// Authenticated, does user have required groups, if any?
-			if( $this->user_has_groups( $username, $this->get_setting('directory') ) ) {
-
+			// Does user have required groups?
+			if ($this->user_has_groups($username)) {
 				$user = get_user_by('login', $username);
 
-				if ( ! $user || ( strtolower($user->user_login) !== strtolower($username) ) )  {
-					if( ! str_true($this->get_setting('create_users')) ) {
-						do_action( 'wp_login_failed', $username );
-						return $this->ldap_auth_error('invalid_username', __('<strong>Simple LDAP Login Error</strong>: LDAP credentials are correct, but there is no matching WordPress user and user creation is not enabled.'));
-					}
-
-					$new_user = wp_insert_user( $this->get_user_data( $username, $this->get_setting('directory') ) );
-
-					if( ! is_wp_error($new_user) )
+				// Does the user exist already ?
+				if (!$user || (strtolower($user->user_login) !== strtolower($username))) {
+					$new_user = wp_insert_user($this->get_user_data($username));
+					if(!is_wp_error($new_user))
 					{
-						// Successful Login
+						// New user logins successfully
 						$new_user = new WP_User($new_user);
 						do_action_ref_array($this->prefix . 'auth_success', array($new_user) );
 
@@ -320,50 +198,32 @@ class OpenLDAPLogin {
 					else
 					{
 						do_action( 'wp_login_failed', $username );
-						return $this->ldap_auth_error("{$this->prefix}login_error", __('<strong>Simple LDAP Login Error</strong>: LDAP credentials are correct and user creation is allowed but an error occurred creating the user in WordPress. Actual error: '.$new_user->get_error_message() ));
+						return $this->ldap_auth_error("{$this->prefix}login_error", __('<strong>OpenLDAP Login Error</strong>: LDAP credentials are correct and user creation is allowed but an error occurred creating the user in WordPress. Actual error: '.$new_user->get_error_message()));
 					}
-
 				} else {
+					// Existing user logins successfully
 					return new WP_User($user->ID);
 				}
 			} else {
-				return $this->ldap_auth_error("{$this->prefix}login_error", __('<strong>Simple LDAP Login Error</strong>: Your LDAP credentials are correct, but you are not in an authorized LDAP group.'));
+				return $this->ldap_auth_error("{$this->prefix}login_error", __('<strong>OpenLDAP Login Error</strong>: Your LDAP credentials are correct, but you are not in an authorized LDAP group.'));
 			}
-
-		} elseif ( str_true($this->get_setting('high_security')) ) {
-			return $this->ldap_auth_error('invalid_username', __('<strong>Simple LDAP Login</strong>: Simple LDAP Login could not authenticate your credentials. The security settings do not permit trying the WordPress user database as a fallback.'));
 		}
 
 		do_action($this->prefix . 'auth_failure');
 		return false;
 	}
 
-	function ldap_auth( $username, $password, $directory ) {
-		$result = false;
+	function ldap_auth($username, $password) {
+		// Create the connection
+		$this->ldap = ldap_connect(join(' ', (array)$this->get_setting('domain_controllers')), (int)$this->get_setting('ldap_port'));
+		ldap_set_option($this->ldap, LDAP_OPT_PROTOCOL_VERSION, (int)$this->get_setting('ldap_version'));
 
-		if ( $directory == "ad" ) {
-			$result = $this->adldap->authenticate( $username, $password );
-		} elseif ( $directory == "ol" ) {
-			$this->ldap = ldap_connect( join(' ', (array)$this->get_setting('domain_controllers')), (int)$this->get_setting('ldap_port') );
-			ldap_set_option($this->ldap, LDAP_OPT_PROTOCOL_VERSION, (int)$this->get_setting('ldap_version'));
-			if ( str_true($this->get_setting('use_tls')) ) {
-				ldap_start_tls($this->ldap);
-			}
-                        $dn = $this->get_setting('ol_login') .'=' . $username . ',' . $this->get_setting('base_dn');
-                        if (str_true($this->get_setting('search_sub_ous'))) {
-                            // search for user's DN in the base DN and below
-                            $filter = $this->get_setting('ol_login') .'=' . $username;
-                            $sr = @ldap_search($this->ldap, $this->get_setting('base_dn'), $filter, array('cn'));
-                            if ($sr !== FALSE) {
-                                $info = @ldap_get_entries($this->ldap, $sr);
-                                if ($info !== FALSE && $info['count'] > 0) {
-                                    $dn = $info[0]['dn'];
-                                }
-                            }
-                        }
-                        $ldapbind = @ldap_bind($this->ldap, $dn, $password);
-			$result = $ldapbind;
-		}
+		// Bind
+		$result = @ldap_bind(
+			$this->ldap,
+			$this->get_setting('account_preffix') .'=' . $username . ',' . $this->get_setting('account_suffix'),
+			$password
+		);
 
 		return apply_filters($this->prefix . 'ldap_auth', $result);
 	}
@@ -376,73 +236,59 @@ class OpenLDAPLogin {
 	 * @param string $message
 	 * @return WP_Error
 	 */
-	function ldap_auth_error( $code, $message ) {
-		remove_all_filters( 'authenticate' );
-		return new WP_Error( $code, $message );
+	function ldap_auth_error($code, $message) {
+		remove_all_filters('authenticate');
+		return new WP_Error($code, $message);
 	}
 
-	function user_has_groups( $username = false, $directory ) {
+	function user_has_groups($username = false) {
 		$result = false;
-		$groups = (array)$this->get_setting('groups');
+		$groups = (array)$this->get_setting('required_groups');
 		$groups = array_filter($groups);
 
-		if ( ! $username ) return $result;
-		if ( count( $groups ) == 0 ) return true;
+		// Check
+		if (!$username) { return $result; }
+		if (count($groups) == 0) { return true; }
+		if( $this->ldap === false ) { return false; }
 
-		if ( $directory == "ad" ) {
-			foreach ($groups as $gp) {
-				if ( $this->adldap->user_ingroup ($username, $gp ) ) {
-					$result = true;
-					break;
-				}
-			}
-		} elseif ( $directory == "ol" ) {
-			if( $this->ldap === false ) return false;
+		// $result = ldap_search($this->ldap, $this->get_setting('base_dn'), '(' . $this->get_setting('ol_login') . '=' . $username . ')', array($this->get_setting('ol_group')));
+		// $ldapgroups = ldap_get_entries($this->ldap, $result);
+		//
+		// // Ok, we should have the user, all the info, including which groups he is a member of.
+		// // Let's make sure he's in the right group before proceeding.
+		// $user_groups = array();
+		// for ( $i = 0; $i < $ldapgroups['count']; $i++) {
+		// 	$user_groups[] .= $ldapgroups[$i][$this->get_setting('ol_group')][0];
+		// }
+		//
+		// $result =  (bool)(count( array_intersect($user_groups, $groups) ) > 0);
 
-			$result = ldap_search($this->ldap, $this->get_setting('base_dn'), '(' . $this->get_setting('ol_login') . '=' . $username . ')', array($this->get_setting('ol_group')));
-			$ldapgroups = ldap_get_entries($this->ldap, $result);
-
-			// Ok, we should have the user, all the info, including which groups he is a member of.
-			// Let's make sure he's in the right group before proceeding.
-			$user_groups = array();
-			for ( $i = 0; $i < $ldapgroups['count']; $i++) {
-				$user_groups[] .= $ldapgroups[$i][$this->get_setting('ol_group')][0];
-			}
-
-			$result =  (bool)(count( array_intersect($user_groups, $groups) ) > 0);
-		}
+		// HACK
+		$result = true;
 
 		return apply_filters($this->prefix . 'user_has_groups', $result);
 	}
 
-	function get_user_data( $username, $directory ) {
+	function get_user_data($username) {
+		if ( $this->ldap == null ) { return false; }
+
 		$user_data = array(
-			'user_pass' => md5( microtime() ),
+			'user_pass' => md5(microtime()),
 			'user_login' => $username,
 			'user_nicename' => '',
 			'user_email' => '',
 			'display_name' => '',
 			'first_name' => '',
 			'last_name' => '',
-			'role' => $this->get_setting('role')
+			'role' => $this->get_setting('default_role')
 		);
 
-		if ( $directory == "ad" ) {
-			$userinfo = $this->adldap->user_info($username, array("samaccountname","givenname","sn","mail"));
-			$userinfo = $userinfo[0];
-		} elseif ( $directory == "ol" ) {
-			if ( $this->ldap == null ) {return false;}
+		$result = ldap_search($this->ldap, $this->get_setting('account_suffix'), '(' . $this->get_setting('account_preffix') . '=' . $username . ')', array($this->get_setting('account_preffix'), 'sn', 'givenname', 'mail'));
+		$userinfo = ldap_get_entries($this->ldap, $result);
+		$userinfo = $userinfo[0];
 
-			$result = ldap_search($this->ldap, $this->get_setting('base_dn'), '(' . $this->get_setting('ol_login') . '=' . $username . ')', array($this->get_setting('ol_login'), 'sn', 'givenname', 'mail'));
-			$userinfo = ldap_get_entries($this->ldap, $result);
-
-			if ($userinfo['count'] == 1) {
-				$userinfo = $userinfo[0];
-			}
-		} else return false;
-
-		if( is_array($userinfo) ) {
-			$user_data['user_nicename'] = strtolower($userinfo['givenname'][0]) . '-' . strtolower($userinfo['sn'][0]);
+		if(is_array($userinfo)) {
+			$user_data['user_nicename'] = strtolower($userinfo['givenname'][0]) . strtolower($userinfo['sn'][0]);
 			$user_data['user_email'] 	= $userinfo['mail'][0];
 			$user_data['display_name']	= $userinfo['givenname'][0] . ' ' . $userinfo['sn'][0];
 			$user_data['first_name']	= $userinfo['givenname'][0];
@@ -456,26 +302,25 @@ class OpenLDAPLogin {
 	 * Returns whether this plugin is currently network activated
 	 */
 	function is_network_version() {
-		if ( $this->network_version !== null) {
+		if ($this->network_version !== null) {
 			return $this->network_version;
 		}
 
-		if ( ! function_exists( 'is_plugin_active_for_network' ) ) {
+		if (!function_exists( 'is_plugin_active_for_network' ) ) {
 			require_once( ABSPATH . '/wp-admin/includes/plugin.php' );
 		}
 
-		if ( is_plugin_active_for_network( plugin_basename(__FILE__) ) ) {
+		if (is_plugin_active_for_network(plugin_basename(__FILE__))) {
 			$this->network_version = true;
 		}
 		else {
 			$this->network_version = false;
-
 		}
 		return $this->network_version;
 	}
 }
 
-if ( ! function_exists('str_true') ) {
+if (!function_exists('str_true')) {
 	/**
 	 * Evaluates natural language strings to boolean equivalent
 	 *
@@ -484,10 +329,8 @@ if ( ! function_exists('str_true') ) {
 	 *
 	 * Boolean values will be passed through.
 	 *
-	 * Replaces the 1.0-1.1 value_is_true()
-	 *
 	 * @author Jonathan Davis
-	 * @since 1.2
+	 * @since 0.1.0
 	 *
 	 * @param string $string The natural language value
 	 * @param array $istrue A list strings that are true

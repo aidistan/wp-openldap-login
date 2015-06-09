@@ -18,7 +18,7 @@ if (isset($_GET['tab'])) {
   </h2>
 
   <form method="post" action="<?php echo str_replace( '%7E', '~', $_SERVER['REQUEST_URI']); ?>">
-<?php wp_nonce_field( 'save_sll_settings','save_the_sll' ); ?>
+<?php wp_nonce_field( 'save_oll_settings','save_the_oll' ); ?>
 <?php if( $active_tab == "simple" ): ?>
     <h3>Required</h3>
     <p>These are the most basic settings you must configure. Without these, you won't be able to use OpenLDAP Login.</p>
