@@ -262,7 +262,7 @@ class OpenLDAPLogin {
 
 	function user_has_group($username = false, $group_dn = '') {
 		if (!$username) { return false; }
-		if ( $this->ldap == null ) { return false; }
+		if ($this->ldap == null) { return false; }
 
 		$result = ldap_search($this->ldap, $group_dn, '(member=' . $this->get_setting('account_preffix') . '=' . $username . ',' . $this->get_setting('account_suffix') . ')');
 		$result = ldap_get_entries($this->ldap, $result);
@@ -275,7 +275,7 @@ class OpenLDAPLogin {
 	}
 
 	function get_user_data($username) {
-		if ( $this->ldap == null ) { return false; }
+		if ($this->ldap == null) { return false; }
 
 		$user_data = array(
 			'user_pass' => md5(microtime()),
@@ -284,9 +284,18 @@ class OpenLDAPLogin {
 			'user_email' => '',
 			'display_name' => '',
 			'first_name' => '',
-			'last_name' => '',
-			'role' => $this->get_setting('default_role')
+			'last_name' => ''
 		);
+
+		if ($this->user_has_group($username, $this->get_setting('admin_group'))) {
+			$user_data['role'] = 'administrator';
+		} elseif ($this->user_has_group($username, $this->get_setting('editor_group'))) {
+			$user_data['role'] = 'editor';
+		} elseif ($this->user_has_group($username, $this->get_setting('author_group'))) {
+			$user_data['role'] = 'author';
+		} else {
+			$user_data['role'] = $this->get_setting('default_role');
+		}
 
 		$result = ldap_search($this->ldap, $this->get_setting('account_suffix'), '(' . $this->get_setting('account_preffix') . '=' . $username . ')', array($this->get_setting('account_preffix'), 'sn', 'givenname', 'mail'));
 		$userinfo = ldap_get_entries($this->ldap, $result);
