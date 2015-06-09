@@ -113,7 +113,7 @@ class OpenLDAPLogin {
 	function get_setting($option = false) {
 		if ($option === false || !isset($this->settings[$option])) return false;
 
-		return apply_filters($this->prefix . 'get_setting', $this->settings[$option], $option);
+		return $this->settings[$option];
 	}
 
 	function add_setting($option = false, $newvalue) {
@@ -183,34 +183,38 @@ class OpenLDAPLogin {
 			// Does user have required groups?
 			if ($this->user_has_groups($username)) {
 				$user = get_user_by('login', $username);
+				$user_data = $this->get_user_data($username);
 
 				// Does the user exist already ?
 				if (!$user || (strtolower($user->user_login) !== strtolower($username))) {
-					$new_user = wp_insert_user($this->get_user_data($username));
-					if(!is_wp_error($new_user))
-					{
-						// New user logins successfully
-						$new_user = new WP_User($new_user);
-						do_action_ref_array($this->prefix . 'auth_success', array($new_user) );
+					// New user
+					$user = wp_insert_user($user_data);
 
-						return $new_user;
-					}
-					else
-					{
-						do_action( 'wp_login_failed', $username );
-						return $this->ldap_auth_error("{$this->prefix}login_error", __('<strong>OpenLDAP Login Error</strong>: LDAP credentials are correct and user creation is allowed but an error occurred creating the user in WordPress. Actual error: '.$new_user->get_error_message()));
+					if(is_wp_error($user)) {
+						// Failed to create
+						return $this->ldap_auth_error("{$this->prefix}login_error", __('<strong>OpenLDAP Login Error</strong>: LDAP credentials are correct but an error occurred when creating the user in WordPress. Actual error: '.$user->get_error_message()));
 					}
 				} else {
-					// Existing user logins successfully
-					return new WP_User($user->ID);
+					// Existing user
+					$user_data['ID'] = $user->ID;
+					$user = wp_update_user($user_data);
+
+					if(is_wp_error($user)) {
+						// Failed to update
+						return $this->ldap_auth_error("{$this->prefix}login_error", __('<strong>OpenLDAP Login Error</strong>: LDAP credentials are correct but an error occurred when updating the user in WordPress. Actual error: '.$user->get_error_message()));
+					}
 				}
+
+				// Successful login
+				return new WP_User($user);
 			} else {
+				// Failed to authenticate by required_groups
 				return $this->ldap_auth_error("{$this->prefix}login_error", __('<strong>OpenLDAP Login Error</strong>: Your LDAP credentials are correct, but you are not in an authorized LDAP group.'));
 			}
+		} else {
+			// Failed to authenticate
+			return false;
 		}
-
-		do_action($this->prefix . 'auth_failure');
-		return false;
 	}
 
 	function ldap_auth($username, $password) {
@@ -219,13 +223,11 @@ class OpenLDAPLogin {
 		ldap_set_option($this->ldap, LDAP_OPT_PROTOCOL_VERSION, (int)$this->get_setting('ldap_version'));
 
 		// Bind
-		$result = @ldap_bind(
+		return $result = @ldap_bind(
 			$this->ldap,
 			$this->get_setting('account_preffix') .'=' . $username . ',' . $this->get_setting('account_suffix'),
 			$password
 		);
-
-		return apply_filters($this->prefix . 'ldap_auth', $result);
 	}
 
 	/**
@@ -266,7 +268,7 @@ class OpenLDAPLogin {
 		// HACK
 		$result = true;
 
-		return apply_filters($this->prefix . 'user_has_groups', $result);
+		return $result;
 	}
 
 	function get_user_data($username) {
@@ -295,7 +297,7 @@ class OpenLDAPLogin {
 			$user_data['last_name'] 	= $userinfo['sn'][0];
 		}
 
-		return apply_filters($this->prefix . 'user_data', $user_data);
+		return $user_data;
 	}
 
 	/**
