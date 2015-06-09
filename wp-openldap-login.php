@@ -181,7 +181,7 @@ class OpenLDAPLogin {
 		if ($this->ldap_auth($username, $password)) {
 
 			// Does user have required groups?
-			if ($this->user_has_groups($username)) {
+			if ($this->user_has_required_groups($username)) {
 				$user = get_user_by('login', $username);
 				$user_data = $this->get_user_data($username);
 
@@ -243,32 +243,35 @@ class OpenLDAPLogin {
 		return new WP_Error($code, $message);
 	}
 
-	function user_has_groups($username = false) {
-		$result = false;
-		$groups = (array)$this->get_setting('required_groups');
-		$groups = array_filter($groups);
+	function user_has_required_groups($username = false) {
+		$required_groups = (array)$this->get_setting('required_groups');
+		$required_groups = array_filter($required_groups);
 
-		// Check
-		if (!$username) { return $result; }
-		if (count($groups) == 0) { return true; }
-		if( $this->ldap === false ) { return false; }
+		if (!$username) { return false; }
+		if ($this->ldap === false) { return false; }
+		if (count($required_groups) == 0) { return true; }
 
-		// $result = ldap_search($this->ldap, $this->get_setting('base_dn'), '(' . $this->get_setting('ol_login') . '=' . $username . ')', array($this->get_setting('ol_group')));
-		// $ldapgroups = ldap_get_entries($this->ldap, $result);
-		//
-		// // Ok, we should have the user, all the info, including which groups he is a member of.
-		// // Let's make sure he's in the right group before proceeding.
-		// $user_groups = array();
-		// for ( $i = 0; $i < $ldapgroups['count']; $i++) {
-		// 	$user_groups[] .= $ldapgroups[$i][$this->get_setting('ol_group')][0];
-		// }
-		//
-		// $result =  (bool)(count( array_intersect($user_groups, $groups) ) > 0);
+		for ($i = 0; $i < count($required_groups); $i++) {
+			if ($this->user_has_group($username, $required_groups[$i])) {
+				return true;
+			}
+		}
 
-		// HACK
-		$result = true;
+		return false;
+	}
 
-		return $result;
+	function user_has_group($username = false, $group_dn = '') {
+		if (!$username) { return false; }
+		if ( $this->ldap == null ) { return false; }
+
+		$result = ldap_search($this->ldap, $group_dn, '(member=' . $this->get_setting('account_preffix') . '=' . $username . ',' . $this->get_setting('account_suffix') . ')');
+		$result = ldap_get_entries($this->ldap, $result);
+
+		if ($result['count'] > 0) {
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	function get_user_data($username) {
