@@ -37,7 +37,7 @@ class OpenLDAPLogin {
 		}
 
 		register_activation_hook(__FILE__, array($this, 'activate'));
-		if($this->get_setting('version') !== self::VERSION) {
+		if($this->get_setting('version') === false) {
 			$this->activate();
 		}
 	}
