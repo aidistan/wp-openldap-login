@@ -29,6 +29,8 @@ class OpenLDAPLogin {
 			add_action('admin_menu', array($this, 'menu'));
 		}
 
+		add_action('plugin_action_links_' . plugin_basename(__FILE__), array($this, 'link'));
+
 		if (str_true($this->get_setting('enabled'))) {
 			// Prior to default authentication
 			add_filter('authenticate', array($this, 'authenticate'), 10, 3);
@@ -82,6 +84,11 @@ class OpenLDAPLogin {
 
 	function admin_page() {
 		include 'wp-openldap-login-admin.php';
+	}
+
+	function link($links) {
+		array_unshift($links, '<a href="admin.php?page=openldap-login">' . __('Settings', 'polylang') . '</a>');
+		return $links;
 	}
 
 	function get_settings_obj() {
