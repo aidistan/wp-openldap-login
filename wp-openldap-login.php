@@ -1,7 +1,7 @@
 <?php
 /*
   Plugin Name: OpenLDAP Login
-  Version: 0.1.0
+  Version: 0.1.1
   Description: 使用 OpenLDAP 认证 WordPress 用户
   Plugin URI: https://github.com/aidistan/wp-openldap-login
   Author: Aidi Stan
@@ -10,7 +10,7 @@
 
 class OpenLDAPLogin {
 	static $instance = false;
-	const VERSION = '0.1.0';
+	const VERSION = '0.1.1';
 
 	var $prefix = 'oll_';
 	var $settings = array();
